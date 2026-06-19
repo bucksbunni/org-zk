@@ -24,6 +24,9 @@
 ;;   - The same UID is stored in the file's :ID: property, so org's
 ;;     native id: links resolve automatically via `org-id'.
 ;;   - Tags live on a `#+filetags:' line in the `:tag1:tag2:' format.
+;;   - Links inserted by `zk/new-from-region' and `zk/new-with-link' show
+;;     the zettel's UID by default; set `org-zk-link-description' to
+;;     `title' to show titles instead.
 ;;
 ;; All public commands are prefixed `zk/'; internal helpers use `org-zk--'.
 
@@ -46,6 +49,13 @@ If nil, commands fall back to the current project root, then to
 the current buffer's directory."
   :type '(choice (directory :tag "Fixed directory")
                  (const :tag "Use project root" nil))
+  :group 'org-zk)
+
+(defcustom org-zk-link-description 'id
+  "Controls the visible text used when inserting a zettel link.
+`id' shows the zettel's UID (default); `title' shows its title."
+  :type '(choice (const :tag "UID" id)
+                 (const :tag "Title" title))
   :group 'org-zk)
 
 ;;;; Internal helpers
@@ -90,8 +100,11 @@ file. Returns a cons cell (UID . PATH)."
     (cons uid path)))
 
 (defun org-zk--insert-link (uid title)
-  "Insert a native org id: link to UID with description TITLE at point."
-  (insert (format "[[id:%s][%s]]" uid title)))
+  "Insert a native org id: link to UID.
+The visible description is UID or TITLE depending on
+`org-zk-link-description'."
+  (insert (format "[[id:%s][%s]]" uid
+                  (if (eq org-zk-link-description 'title) title uid))))
 
 (defun org-zk--files ()
   "Return a list of all zettel .org files in the base directory."

@@ -51,6 +51,7 @@ Then `doom sync` and restart.
 | Variable           | Default              | Description                                  |
 |--------------------|----------------------|----------------------------------------------|
 | `org-zk-directory`     | `"~/zettelkasten/"`  | Where zettels live. `nil` = project root.    |
+| `org-zk-link-description` | `'id`             | Visible text for inserted links: `'id` or `'title`. |
 | `org-id-method`    | (org default)        | Controls UID format (`'ts`, `'uuid`, etc.).  |
 | `org-id-ts-format` | (org default)        | Timestamp format when `org-id-method` is `'ts`. |
 
