@@ -21,12 +21,13 @@
 ;;             org-id-ts-format "%y%m%d%H%M%S")
 ;;
 ;;   - Filenames follow the pattern "Title (UID).org".
-;;   - The same UID is stored in the file's :ID: property, so org's
-;;     native id: links resolve automatically via `org-id'.
+;;   - The same UID is stored in the file's :ID: property and registered
+;;     with org-id at creation time, so native id: links resolve
+;;     immediately via `org-id'. If you ever see "Cannot find entry
+;;     with ID" for an older zettel, run `zk/rebuild-id-locations'.
 ;;   - Tags live on a `#+filetags:' line in the `:tag1:tag2:' format.
-;;   - Links inserted by `zk/new-from-region' and `zk/new-with-link' show
-;;     the zettel's UID by default; set `org-zk-link-description' to
-;;     `title' to show titles instead.
+;;   - Links inserted by `zk/new-from-region' and `zk/new-with-link' are
+;;     bare `[[id:UID]]' links with no description.
 ;;
 ;; All public commands are prefixed `zk/'; internal helpers use `org-zk--'.
 
@@ -49,13 +50,6 @@ If nil, commands fall back to the current project root, then to
 the current buffer's directory."
   :type '(choice (directory :tag "Fixed directory")
                  (const :tag "Use project root" nil))
-  :group 'org-zk)
-
-(defcustom org-zk-link-description 'id
-  "Controls the visible text used when inserting a zettel link.
-`id' shows the zettel's UID (default); `title' shows its title."
-  :type '(choice (const :tag "UID" id)
-                 (const :tag "Title" title))
   :group 'org-zk)
 
 ;;;; Internal helpers
@@ -88,23 +82,26 @@ for timestamps, `uuid' for UUIDs) and, for the timestamp method,
 
 (defun org-zk--create (title &optional content)
   "Create a zettel file titled TITLE with optional CONTENT.
-Writes the org front matter (title + :ID: property) and saves the
-file. Returns a cons cell (UID . PATH)."
+Writes the org front matter (:ID: property + title), saves the
+file, and registers UID with org-id so id: links to it resolve
+immediately. The :PROPERTIES: drawer must come before #+title:
+-- org only recognizes a file-level property drawer as such when
+it is the very first thing in the buffer; otherwise :ID: is
+parsed as plain text and never resolves. Returns a cons cell
+(UID . PATH)."
   (org-zk--ensure-directory)
   (let* ((uid (org-zk--uid))
          (path (org-zk--path title uid)))
     (with-current-buffer (find-file-noselect path)
-      (insert (format "#+title: %s\n:PROPERTIES:\n:ID: %s\n:END:\n\n%s"
-                       title uid (or content "")))
+      (insert (format ":PROPERTIES:\n:ID: %s\n:END:\n#+title: %s\n\n%s"
+                       uid title (or content "")))
       (save-buffer))
+    (org-id-add-location uid path)
     (cons uid path)))
 
-(defun org-zk--insert-link (uid title)
-  "Insert a native org id: link to UID.
-The visible description is UID or TITLE depending on
-`org-zk-link-description'."
-  (insert (format "[[id:%s][%s]]" uid
-                  (if (eq org-zk-link-description 'title) title uid))))
+(defun org-zk--insert-link (uid)
+  "Insert a bare native org id: link to UID at point, with no description."
+  (insert (format "[[id:%s]]" uid)))
 
 (defun org-zk--files ()
   "Return a list of all zettel .org files in the base directory."
@@ -145,7 +142,7 @@ the classic \"promote a thought to its own note\" operation."
          (result (org-zk--create title content))
          (uid (car result)))
     (delete-region (region-beginning) (region-end))
-    (org-zk--insert-link uid title)))
+    (org-zk--insert-link uid)))
 
 ;;;###autoload
 (defun zk/new-with-link (title &optional visit)
@@ -155,7 +152,7 @@ With a prefix argument (VISIT non-nil), also open the new note."
   (let* ((result (org-zk--create title))
          (uid (car result))
          (path (cdr result)))
-    (org-zk--insert-link uid title)
+    (org-zk--insert-link uid)
     (when visit (find-file path))))
 
 ;;;; Commands: tagging
@@ -201,6 +198,17 @@ filetags line just after the title if it does not yet exist."
     (if matches
         (find-file (completing-read "Zettel: " matches))
       (message "No zettels tagged :%s:" tag))))
+
+;;;###autoload
+(defun zk/rebuild-id-locations ()
+  "Re-scan all zettels and register their UIDs with org-id.
+Run this if id: links report \"Cannot find entry with ID\" --
+typically for zettels created before `org-zk--create' started
+registering locations itself, or after `org-id-locations-file'
+was deleted or got out of sync."
+  (interactive)
+  (org-id-update-id-locations (org-zk--files))
+  (message "org-zk: id locations rebuilt"))
 
 ;;;; Commands: finding & searching
 
@@ -264,7 +272,8 @@ without losing your place. Only handles id: links."
            :desc "Find file"       "f" #'zk/find-file
            :desc "Search content"  "s" #'zk/search
            :desc "Follow link"     "o" #'zk/follow-link-at-point
-           :desc "Preview link"    "p" #'zk/preview-link-at-point))))
+           :desc "Preview link"    "p" #'zk/preview-link-at-point
+           :desc "Rebuild ID locations" "R" #'zk/rebuild-id-locations))))
 
 (provide 'org-zk)
 
