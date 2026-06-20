@@ -34,8 +34,8 @@ In `config.el`:
 (use-package! org-zk
   :commands (org-zk/new org-zk/find-file org-zk/search)
   :init
-  (setq org-zk-directory "~/zk/")
-  ;; Timestamp UIDs of the form YYMMDDHHMMSS, e.g. 260807150301
+  (setq org-zk-directory "~/org-zk/")
+  ;; Timestamp uids of the form YYMMDDHHMMSS, e.g. 260807150301
   (setq org-id-method 'ts
         org-id-ts-format "%y%m%d%H%M%S"))
 ```
@@ -46,18 +46,18 @@ Then `doom sync` and restart.
 
 ```elisp
 (use-package org-zk
-  :load-path "/path/to/zk"
+  :load-path "/path/to/org-zk"
   :config
-  (setq org-zk-directory "~/zk/"))
+  (setq org-zk-directory "~/org-zk/"))
 ```
 
 ## Configuration
 
 | Variable           | Default              | Description                                  |
 |--------------------|----------------------|----------------------------------------------|
-| `org-zk-directory`     | `"~/zettelkasten/"`  | Where zettels live. `nil` = project root.    |
-| `org-zk-filename-style` | `'slug`             | Filename template: `'slug` (`slug_uid.org`) or `'title` (`Title (uid).org`). |
-| `org-id-method`    | (org default)        | Controls UID format (`'ts`, `'uuid`, etc.).  |
+| `org-zk-directory`     | `"~/org-zk/"`  | Where zettels live. `nil` = project root.    |
+| `org-zk-filename-style` | `'slug`             | Filename template: `'slug` (`slug_uid.org`) or `'title` (`title (uid).org`). |
+| `org-id-method`    | (org default)        | Controls uid format (`'ts`, `'uuid`, etc.).  |
 | `org-id-ts-format` | (org default)        | Timestamp format when `org-id-method` is `'ts`. |
 
 ## Commands

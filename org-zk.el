@@ -47,7 +47,7 @@
   :group 'org
   :prefix "org-zk-")
 
-(defcustom org-zk-directory "~/zettelkasten/"
+(defcustom org-zk-directory "~/org-zk/"
   "Default directory in which zettels are stored.
 If nil, commands fall back to the current project root, then to
 the current buffer's directory."
