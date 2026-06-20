@@ -20,14 +20,17 @@
 ;;       (setq org-id-method 'ts
 ;;             org-id-ts-format "%y%m%d%H%M%S")
 ;;
-;;   - Filenames follow the pattern "Title (UID).org".
+;;   - Filenames follow `org-zk-filename-style': by default "slug_uid.org"
+;;     (a lowercased, underscore-separated title); set it to `title' for
+;;     the classic "Title (uid).org" form.
 ;;   - The same UID is stored in the file's :ID: property and registered
 ;;     with org-id at creation time, so native id: links resolve
 ;;     immediately via `org-id'. If you ever see "Cannot find entry
 ;;     with ID" for an older zettel, run `zk/rebuild-id-locations'.
 ;;   - Tags live on a `#+filetags:' line in the `:tag1:tag2:' format.
-;;   - Links inserted by `zk/new-from-region' and `zk/new-with-link' are
-;;     bare `[[id:UID]]' links with no description.
+;;   - Links can be inserted bare (`[[id:UID]]') or with the target's
+;;     title as the description (`[[id:UID][Title]]'); each form has its
+;;     own command for both new and existing zettels.
 ;;
 ;; All public commands are prefixed `zk/'; internal helpers use `org-zk--'.
 
@@ -52,6 +55,15 @@ the current buffer's directory."
                  (const :tag "Use project root" nil))
   :group 'org-zk)
 
+(defcustom org-zk-filename-style 'slug
+  "Template controlling how zettel filenames are built.
+`slug' yields \"slug_uid.org\", where the slug is the title
+lowercased with runs of non-alphanumerics collapsed to single
+underscores. `title' yields the classic \"Title (uid).org\"."
+  :type '(choice (const :tag "slug_uid.org" slug)
+                 (const :tag "Title (uid).org" title))
+  :group 'org-zk)
+
 ;;;; Internal helpers
 
 (defun org-zk--base-directory ()
@@ -69,9 +81,23 @@ for timestamps, `uuid' for UUIDs) and, for the timestamp method,
 `org-id-ts-format'."
   (org-id-new))
 
+(defun org-zk--slug (title)
+  "Convert TITLE into a lowercase, underscore-separated slug.
+Runs of non-alphanumeric characters become a single underscore,
+and leading/trailing underscores are stripped."
+  (let ((s (replace-regexp-in-string "[^a-z0-9]+" "_" (downcase title))))
+    (replace-regexp-in-string "\\`_+\\|_+\\'" "" s)))
+
+(defun org-zk--filename (title uid)
+  "Build the bare zettel filename for TITLE and UID.
+Honors `org-zk-filename-style'."
+  (pcase org-zk-filename-style
+    ('slug (format "%s_%s.org" (org-zk--slug title) uid))
+    (_     (format "%s (%s).org" title uid))))
+
 (defun org-zk--path (title uid)
   "Build the absolute path for a zettel named TITLE with UID."
-  (expand-file-name (format "%s (%s).org" title uid)
+  (expand-file-name (org-zk--filename title uid)
                     (org-zk--base-directory)))
 
 (defun org-zk--ensure-directory ()
@@ -99,13 +125,47 @@ parsed as plain text and never resolves. Returns a cons cell
     (org-id-add-location uid path)
     (cons uid path)))
 
-(defun org-zk--insert-link (uid)
-  "Insert a bare native org id: link to UID at point, with no description."
-  (insert (format "[[id:%s]]" uid)))
+(defun org-zk--insert-link (uid &optional description)
+  "Insert a native org id: link to UID at point.
+With DESCRIPTION non-nil, use it as the link's visible text
+\(`[[id:UID][DESCRIPTION]]'); otherwise insert a bare
+`[[id:UID]]' link."
+  (insert (if (and description (not (string-empty-p description)))
+              (format "[[id:%s][%s]]" uid description)
+            (format "[[id:%s]]" uid))))
 
 (defun org-zk--files ()
   "Return a list of all zettel .org files in the base directory."
   (directory-files (org-zk--base-directory) t "\\.org\\'"))
+
+(defun org-zk--file-field (file regexp)
+  "Return the first capture group of REGEXP in FILE, or nil.
+Only the first 2000 bytes of FILE are scanned, for speed."
+  (with-temp-buffer
+    (insert-file-contents file nil 0 2000)
+    (goto-char (point-min))
+    (when (re-search-forward regexp nil t)
+      (match-string 1))))
+
+(defun org-zk--file-title (file)
+  "Return the `#+title:' of FILE, falling back to its base name."
+  (or (org-zk--file-field file "^#\\+title:\\s-*\\(.*\\)$")
+      (file-name-base file)))
+
+(defun org-zk--file-id (file)
+  "Return the `:ID:' property of FILE, or nil."
+  (org-zk--file-field file "^\\s-*:ID:\\s-*\\(\\S-+\\)"))
+
+(defun org-zk--read-zettel (prompt)
+  "Prompt with PROMPT to pick an existing zettel via completion.
+Returns a cons cell (UID . TITLE) for the chosen note."
+  (let* ((table (mapcar (lambda (file)
+                          (cons (org-zk--file-title file)
+                                (org-zk--file-id file)))
+                        (org-zk--files)))
+         (title (completing-read prompt table nil t))
+         (uid (cdr (assoc title table))))
+    (cons uid title)))
 
 (defun org-zk--collect-tags ()
   "Scan all zettels and return a de-duplicated list of their tags.
@@ -146,7 +206,7 @@ the classic \"promote a thought to its own note\" operation."
 
 ;;;###autoload
 (defun zk/new-with-link (title &optional visit)
-  "Create a new zettel titled TITLE and insert a link at point.
+  "Create a new zettel titled TITLE and insert a bare link at point.
 With a prefix argument (VISIT non-nil), also open the new note."
   (interactive (list (read-string "Title: ") current-prefix-arg))
   (let* ((result (org-zk--create title))
@@ -154,6 +214,34 @@ With a prefix argument (VISIT non-nil), also open the new note."
          (path (cdr result)))
     (org-zk--insert-link uid)
     (when visit (find-file path))))
+
+;;;###autoload
+(defun zk/new-with-titled-link (title &optional visit)
+  "Create a new zettel titled TITLE and insert a titled link at point.
+The link shows TITLE as its description (`[[id:UID][TITLE]]').
+With a prefix argument (VISIT non-nil), also open the new note."
+  (interactive (list (read-string "Title: ") current-prefix-arg))
+  (let* ((result (org-zk--create title))
+         (uid (car result))
+         (path (cdr result)))
+    (org-zk--insert-link uid title)
+    (when visit (find-file path))))
+
+;;;; Commands: linking to existing zettels
+
+;;;###autoload
+(defun zk/insert-link ()
+  "Pick an existing zettel and insert a bare link to it at point."
+  (interactive)
+  (org-zk--insert-link (car (org-zk--read-zettel "Link to zettel: "))))
+
+;;;###autoload
+(defun zk/insert-link-titled ()
+  "Pick an existing zettel and insert a titled link to it at point.
+The link shows the target's title as its description."
+  (interactive)
+  (pcase-let ((`(,uid . ,title) (org-zk--read-zettel "Link to zettel: ")))
+    (org-zk--insert-link uid title)))
 
 ;;;; Commands: tagging
 
@@ -267,6 +355,9 @@ without losing your place. Only handles id: links."
            :desc "New zettel"      "n" #'zk/new
            :desc "New from region" "r" #'zk/new-from-region
            :desc "New with link"   "l" #'zk/new-with-link
+           :desc "New with titled link" "L" #'zk/new-with-titled-link
+           :desc "Insert link"     "i" #'zk/insert-link
+           :desc "Insert titled link" "I" #'zk/insert-link-titled
            :desc "Add tag"         "t" #'zk/add-tag
            :desc "Find by tag"     "T" #'zk/find-by-tag
            :desc "Find file"       "f" #'zk/find-file
