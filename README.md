@@ -32,7 +32,7 @@ In `config.el`:
 
 ```elisp
 (use-package! org-zk
-  :commands (zk/new zk/find-file zk/search)
+  :commands (org-zk/new org-zk/find-file org-zk/search)
   :init
   (setq org-zk-directory "~/zk/")
   ;; Timestamp UIDs of the form YYMMDDHHMMSS, e.g. 260807150301
@@ -62,23 +62,27 @@ Then `doom sync` and restart.
 
 ## Commands
 
-All commands are prefixed `zk/` and bound under `SPC n z` in Doom:
+All commands are prefixed `org-zk/` and bound under `SPC n z` in Doom:
 
-| Key         | Command                     | Description                              |
-|-------------|-----------------------------|------------------------------------------|
-| `SPC n z n` | `zk/new`                    | Create a new zettel and visit it         |
-| `SPC n z r` | `zk/new-from-region`        | Extract the region into a new linked note |
-| `SPC n z l` | `zk/new-with-link`          | Create a note and insert a bare link at point |
-| `SPC n z L` | `zk/new-with-titled-link`   | Create a note and insert a titled link at point |
-| `SPC n z i` | `zk/insert-link`            | Insert a bare link to an existing zettel |
-| `SPC n z I` | `zk/insert-link-titled`     | Insert a titled link to an existing zettel |
-| `SPC n z t` | `zk/add-tag`                | Add a tag to the current zettel          |
-| `SPC n z T` | `zk/find-by-tag`            | Find a zettel by tag                     |
-| `SPC n z f` | `zk/find-file`              | Fuzzy find by filename/title             |
-| `SPC n z s` | `zk/search`                 | Fuzzy search across content (ripgrep)    |
-| `SPC n z o` | `zk/follow-link-at-point`   | Follow the link at point                 |
-| `SPC n z p` | `zk/preview-link-at-point`  | Preview the linked note in a side window |
-| `SPC n z R` | `zk/rebuild-id-locations`   | Re-scan zettels and re-register IDs with org-id |
+| Key         | Command                        | Description                                     |
+|-------------|--------------------------------|-------------------------------------------------|
+| `SPC n z n` | `org-zk/new`                   | Create a new zettel and visit it                |
+| `SPC n z r` | `org-zk/new-from-region`       | Extract the region into a new linked note       |
+| `SPC n z l` | `org-zk/new-with-link`         | Create a note and insert a bare link at point   |
+| `SPC n z L` | `org-zk/new-with-titled-link`  | Create a note and insert a titled link at point |
+| `SPC n z i` | `org-zk/insert-link`           | Insert a bare link to an existing zettel        |
+| `SPC n z I` | `org-zk/insert-link-titled`    | Insert a titled link to an existing zettel      |
+| `SPC n z t` | `org-zk/add-tag`               | Add a tag to the current zettel                 |
+| `SPC n z T` | `org-zk/find-by-tag`           | Find a zettel by tag                            |
+| `SPC n z f` | `org-zk/find-file`             | Fuzzy find by filename/title                    |
+| `SPC n z s` | `org-zk/search`                | Fuzzy search across content (ripgrep)           |
+| `SPC n z o` | `org-zk/follow-link-at-point`  | Follow the link at point                        |
+| `SPC n z p` | `org-zk/preview-link-at-point` | Preview the linked note in a side window        |
+| `SPC n z R` | `org-zk/rebuild-id-locations`  | Re-scan zettels and re-register IDs with org-id |
+
+## Index
+
+Run `M-x org-zk/rebuild-id-locations` once in Emacs so `org-id` learns new notes.
 
 ## License
 

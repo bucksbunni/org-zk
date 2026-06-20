@@ -26,13 +26,13 @@
 ;;   - The same UID is stored in the file's :ID: property and registered
 ;;     with org-id at creation time, so native id: links resolve
 ;;     immediately via `org-id'. If you ever see "Cannot find entry
-;;     with ID" for an older zettel, run `zk/rebuild-id-locations'.
+;;     with ID" for an older zettel, run `org-zk/rebuild-id-locations'.
 ;;   - Tags live on a `#+filetags:' line in the `:tag1:tag2:' format.
 ;;   - Links can be inserted bare (`[[id:UID]]') or with the target's
 ;;     title as the description (`[[id:UID][Title]]'); each form has its
 ;;     own command for both new and existing zettels.
 ;;
-;; All public commands are prefixed `zk/'; internal helpers use `org-zk--'.
+;; All public commands are prefixed `org-zk/'; internal helpers use `org-zk--'.
 
 ;;; Code:
 
@@ -183,13 +183,13 @@ Only the first 2000 bytes of each file are read for speed."
 ;;;; Commands: creating zettels
 
 ;;;###autoload
-(defun zk/new (title)
+(defun org-zk/new (title)
   "Create a new zettel titled TITLE and visit it."
   (interactive "sTitle: ")
   (find-file (cdr (org-zk--create title))))
 
 ;;;###autoload
-(defun zk/new-from-region ()
+(defun org-zk/new-from-region ()
   "Extract the active region into a new zettel.
 Prompts for a title, moves the selected text into the new note,
 and replaces the original selection with a link to it. This is
@@ -205,7 +205,7 @@ the classic \"promote a thought to its own note\" operation."
     (org-zk--insert-link uid)))
 
 ;;;###autoload
-(defun zk/new-with-link (title &optional visit)
+(defun org-zk/new-with-link (title &optional visit)
   "Create a new zettel titled TITLE and insert a bare link at point.
 With a prefix argument (VISIT non-nil), also open the new note."
   (interactive (list (read-string "Title: ") current-prefix-arg))
@@ -216,7 +216,7 @@ With a prefix argument (VISIT non-nil), also open the new note."
     (when visit (find-file path))))
 
 ;;;###autoload
-(defun zk/new-with-titled-link (title &optional visit)
+(defun org-zk/new-with-titled-link (title &optional visit)
   "Create a new zettel titled TITLE and insert a titled link at point.
 The link shows TITLE as its description (`[[id:UID][TITLE]]').
 With a prefix argument (VISIT non-nil), also open the new note."
@@ -230,13 +230,13 @@ With a prefix argument (VISIT non-nil), also open the new note."
 ;;;; Commands: linking to existing zettels
 
 ;;;###autoload
-(defun zk/insert-link ()
+(defun org-zk/insert-link ()
   "Pick an existing zettel and insert a bare link to it at point."
   (interactive)
   (org-zk--insert-link (car (org-zk--read-zettel "Link to zettel: "))))
 
 ;;;###autoload
-(defun zk/insert-link-titled ()
+(defun org-zk/insert-link-titled ()
   "Pick an existing zettel and insert a titled link to it at point.
 The link shows the target's title as its description."
   (interactive)
@@ -246,7 +246,7 @@ The link shows the target's title as its description."
 ;;;; Commands: tagging
 
 ;;;###autoload
-(defun zk/add-tag ()
+(defun org-zk/add-tag ()
   "Add a tag to the current zettel's `#+filetags:' line.
 Offers completion over tags already used elsewhere. Creates the
 filetags line just after the title if it does not yet exist."
@@ -269,7 +269,7 @@ filetags line just after the title if it does not yet exist."
     (save-buffer)))
 
 ;;;###autoload
-(defun zk/find-by-tag ()
+(defun org-zk/find-by-tag ()
   "Find and open a zettel filtered by a chosen tag."
   (interactive)
   (let* ((tag (completing-read "Tag: " (org-zk--collect-tags)))
@@ -288,7 +288,7 @@ filetags line just after the title if it does not yet exist."
       (message "No zettels tagged :%s:" tag))))
 
 ;;;###autoload
-(defun zk/rebuild-id-locations ()
+(defun org-zk/rebuild-id-locations ()
   "Re-scan all zettels and register their UIDs with org-id.
 Run this if id: links report \"Cannot find entry with ID\" --
 typically for zettels created before `org-zk--create' started
@@ -301,14 +301,14 @@ was deleted or got out of sync."
 ;;;; Commands: finding & searching
 
 ;;;###autoload
-(defun zk/find-file ()
+(defun org-zk/find-file ()
   "Fuzzy find a zettel by filename/title via `consult-find'."
   (interactive)
   (let ((default-directory (org-zk--base-directory)))
     (consult-find)))
 
 ;;;###autoload
-(defun zk/search ()
+(defun org-zk/search ()
   "Fuzzy search across zettel content via `consult-ripgrep'."
   (interactive)
   (consult-ripgrep (org-zk--base-directory)))
@@ -316,15 +316,15 @@ was deleted or got out of sync."
 ;;;; Commands: following & previewing links
 
 ;;;###autoload
-(defun zk/follow-link-at-point ()
+(defun org-zk/follow-link-at-point ()
   "Follow the org link at point.
-Thin wrapper around `org-open-at-point' for a consistent `zk/'
+Thin wrapper around `org-open-at-point' for a consistent `org-zk/'
 entry point; native id: links resolve automatically via org-id."
   (interactive)
   (org-open-at-point))
 
 ;;;###autoload
-(defun zk/preview-link-at-point ()
+(defun org-zk/preview-link-at-point ()
   "Preview the zettel linked at point in a window below.
 Keeps focus in the current window so you can glance at the target
 without losing your place. Only handles id: links."
@@ -351,20 +351,20 @@ without losing your place. Only handles id: links."
 (with-eval-after-load 'doom-keybinds
   (when (fboundp 'map!)
     (map! :leader
-          (:prefix ("n z" . "zk")
-           :desc "New zettel"      "n" #'zk/new
-           :desc "New from region" "r" #'zk/new-from-region
-           :desc "New with link"   "l" #'zk/new-with-link
-           :desc "New with titled link" "L" #'zk/new-with-titled-link
-           :desc "Insert link"     "i" #'zk/insert-link
-           :desc "Insert titled link" "I" #'zk/insert-link-titled
-           :desc "Add tag"         "t" #'zk/add-tag
-           :desc "Find by tag"     "T" #'zk/find-by-tag
-           :desc "Find file"       "f" #'zk/find-file
-           :desc "Search content"  "s" #'zk/search
-           :desc "Follow link"     "o" #'zk/follow-link-at-point
-           :desc "Preview link"    "p" #'zk/preview-link-at-point
-           :desc "Rebuild ID locations" "R" #'zk/rebuild-id-locations))))
+          (:prefix ("n z" . "org-zk")
+           :desc "New zettel"      "n" #'org-zk/new
+           :desc "New from region" "r" #'org-zk/new-from-region
+           :desc "New with link"   "l" #'org-zk/new-with-link
+           :desc "New with titled link" "L" #'org-zk/new-with-titled-link
+           :desc "Insert link"     "i" #'org-zk/insert-link
+           :desc "Insert titled link" "I" #'org-zk/insert-link-titled
+           :desc "Add tag"         "t" #'org-zk/add-tag
+           :desc "Find by tag"     "T" #'org-zk/find-by-tag
+           :desc "Find file"       "f" #'org-zk/find-file
+           :desc "Search content"  "s" #'org-zk/search
+           :desc "Follow link"     "o" #'org-zk/follow-link-at-point
+           :desc "Preview link"    "p" #'org-zk/preview-link-at-point
+           :desc "Rebuild ID locations" "R" #'org-zk/rebuild-id-locations))))
 
 (provide 'org-zk)
 
